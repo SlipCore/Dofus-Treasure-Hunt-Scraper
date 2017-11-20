@@ -1,0 +1,16 @@
+{
+  "name": "scraper",
+  "version": "1.0.0",
+  "description": "Dofus Treasure Hunting clues database scraper",
+  "main": "scraper.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Roman Butakov",
+  "license": "Unlicense",
+  "dependencies": {
+    "cllc": "0.0.10",
+    "needle": "^2.0.1",
+    "tress": "^1.0.5"
+  }
+}
