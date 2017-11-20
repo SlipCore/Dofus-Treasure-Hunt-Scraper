@@ -1,12 +1,13 @@
 var tress = require('tress'); // Asynchronous job queue with concurrency
 var needle = require('needle'); // HTTP client
 var log = require('cllc')(); // Simple logger and counter for console
+var sqlite3 = require("sqlite3").verbose(); // SQLite3 bindings
 
-const CONCURENCY = -100;
-const X_START = -100;
-const X_END = 100;
-const Y_START = -100;
-const Y_END = 100;
+const CONCURENCY = -100;  // 100 ms delay between jobs
+const X_START = 0;
+const X_END = 0;
+const Y_START = 0;
+const Y_END = 0;
 const DIRECTIONS = ['right', 'left', 'top', 'bottom'];
 
 var results = [];
@@ -30,7 +31,21 @@ var q = tress(function(job, done_callback) { // worker
 }, CONCURENCY);
 
 q.drain = function() {
-    require('fs').writeFileSync('./data.json', JSON.stringify(results, null, 0));
+    //require('fs').writeFileSync('./data.json', JSON.stringify(results, null, 0));
+
+    var db = new sqlite3.Database("data.sqlite"); // Open a database handle
+    db.serialize(function() {
+
+        db.run('DROP TABLE IF EXISTS data');
+        db.run('CREATE TABLE data(json_object TEXT)');
+        var statement = db.prepare("INSERT INTO data VALUES (?)");
+        for (var i = 0; i < results.length; i++) {
+            statement.run(JSON.stringify(results[i], null, 0));
+        }
+        statement.finalize();
+        db.close();
+    });
+
     log.finish();
     log('Finished');
 }
