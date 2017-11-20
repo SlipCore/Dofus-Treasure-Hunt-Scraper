@@ -11,6 +11,7 @@ const Y_END = 50;
 const DIRECTIONS = ['right', 'left', 'top', 'bottom'];
 
 var results = [];
+var jobs_done = 0;
 
 // Function for processing response data domehow
 function process_response(body) {
@@ -24,7 +25,11 @@ var q = tress(function(job, done_callback) { // worker
         if (err) throw err;
         if (response.statusCode == 200) {
             process_response(response.body);
-            log.step();
+            if (jobs_done % 10 == 0) {
+                console.log(jobs_done + ' jobs done');
+            }
+            jobs_done++;
+            //log.step();
             done_callback(); // must call that callback when job finished
         }
     });
@@ -46,8 +51,9 @@ q.drain = function() {
         db.close();
     });
 
-    log.finish();
-    log('Finished');
+    //log.finish();
+    //log('Finished');
+    console.log('Finished');
 }
 
 q.error = function(err) {
@@ -57,9 +63,10 @@ q.error = function(err) {
 //process.exit(0);
 
 // Here we go
-log('Start');
+//log('Start');
+console.log('Start');
 var jobs_n = (X_END - X_START + 1) * (Y_END - Y_START + 1) * DIRECTIONS.length;
-log.start('job %s of ' + jobs_n);
+//log.start('job %s of ' + jobs_n);
 // Push jobs to queue and... wait until all well be done
 for (var x = X_START; x <= X_END; x++) {
     for (var y = Y_START; y <= Y_END; y++) {
