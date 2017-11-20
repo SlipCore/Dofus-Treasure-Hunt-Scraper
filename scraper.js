@@ -4,10 +4,10 @@ var log = require('cllc')(); // Simple logger and counter for console
 var sqlite3 = require("sqlite3").verbose(); // SQLite3 bindings
 
 const CONCURENCY = -100;  // 100 ms delay between jobs
-const X_START = 0;
-const X_END = 0;
-const Y_START = 0;
-const Y_END = 0;
+const X_START = -90;
+const X_END = 40;
+const Y_START = -95;
+const Y_END = 50;
 const DIRECTIONS = ['right', 'left', 'top', 'bottom'];
 
 var results = [];
