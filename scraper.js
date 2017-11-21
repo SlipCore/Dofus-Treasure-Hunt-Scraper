@@ -3,7 +3,9 @@ var needle = require('needle'); // HTTP client
 var log = require('cllc')(); // Simple logger and counter for console
 var sqlite3 = require("sqlite3").verbose(); // SQLite3 bindings
 
-const CONCURENCY = -100;  // 100 ms delay between jobs
+const LOG_PERIOD = 100;
+const CONCURENCY_DEFAULT = 1;
+const CONCURENCY_ERROR = -60000; // if error - wait a minute
 const X_START = -90;
 const X_END = 40;
 const Y_START = -95;
@@ -13,31 +15,49 @@ const DIRECTIONS = ['right', 'left', 'top', 'bottom'];
 var results = [];
 var jobs_done = 0;
 
+var db = new sqlite3.Database("data.sqlite"); // Open a database handle
+db.serialize(function() {
+    db.run('DROP TABLE IF EXISTS data');
+    db.run('CREATE TABLE data(json_object TEXT)');
+});
+
 // Function for processing response data domehow
 function process_response(body) {
-    results.push(body);
+    //results.push(body);
+
+    db.serialize(function() {
+        var statement = db.prepare("INSERT INTO data VALUES (?)");
+        statement.run(JSON.stringify(body, null, 0));
+        statement.finalize();
+    });
 }
 
 // Create and configure job queue
 var q = tress(function(job, done_callback) { // worker
     url = 'http://dofus-map.com/huntTool/getData.php?x='+job.x+'&y='+job.y+'&direction='+job.di+'&world=0&language=en'
     needle.get(url, function(err, response){
-        if (err) throw err;
-        if (response.statusCode == 200) {
-            process_response(response.body);
-            if (jobs_done % 10 == 0) {
-                console.log(jobs_done + ' jobs done');
-            }
-            jobs_done++;
-            //log.step();
-            done_callback(); // must call that callback when job finished
+        if (err || response.statusCode !== 200) {
+            q.concurrency === CONCURENCY_DEFAULT && log.e((err || response.statusCode) + ' - ' + url);
+            return done_callback(true); // return job into queue if request failed
         }
+        if (!response.body) {
+            q.concurrency === CONCURENCY_DEFAULT && log.e(jobs_done + 'job response is empty -' + url) ;
+            return done_callback(true); // return job into queue if response body is empty
+        }
+        process_response(response.body);
+        if (jobs_done % LOG_PERIOD == 0) {
+            console.log(jobs_done + ' jobs done');
+        }
+        jobs_done++;
+        //log.step();
+        done_callback(); // must call that callback when job finished
     });
-}, CONCURENCY);
+}, CONCURENCY_DEFAULT);
 
 q.drain = function() {
     //require('fs').writeFileSync('./data.json', JSON.stringify(results, null, 0));
 
+/*
     var db = new sqlite3.Database("data.sqlite"); // Open a database handle
     db.serialize(function() {
 
@@ -50,22 +70,31 @@ q.drain = function() {
         statement.finalize();
         db.close();
     });
-
+*/
+    db.close();
     //log.finish();
     //log('Finished');
     console.log('Finished');
 }
 
-q.error = function(err) {
+q.error = function(err) { // not used
     log.e('Job ' + this + ' failed with error ' + err);
 };
+
+q.success = function(){
+    q.concurrency = CONCURENCY_DEFAULT;
+}
+
+q.retry = function(){
+    q.concurrency = CONCURENCY_ERROR;
+}
 
 //process.exit(0);
 
 // Here we go
 //log('Start');
-console.log('Start');
 var jobs_n = (X_END - X_START + 1) * (Y_END - Y_START + 1) * DIRECTIONS.length;
+console.log('Start ' + jobs_n + ' jobs');
 //log.start('job %s of ' + jobs_n);
 // Push jobs to queue and... wait until all well be done
 for (var x = X_START; x <= X_END; x++) {
