@@ -35,6 +35,7 @@ function process_response(body) {
 // Create and configure job queue
 var q = tress(function(job, done_callback) { // worker
     url = 'http://dofus-map.com/huntTool/getData.php?x='+job.x+'&y='+job.y+'&direction='+job.di+'&world=0&language=en'
+    //console.log(url);
     needle.get(url, function(err, response){
         if (err || response.statusCode !== 200) {
             q.concurrency === CONCURENCY_DEFAULT && log.e((err || response.statusCode) + ' - ' + url);
@@ -91,16 +92,37 @@ q.retry = function(){
 
 //process.exit(0);
 
-// Here we go
-//log('Start');
-var jobs_n = (X_END - X_START + 1) * (Y_END - Y_START + 1) * DIRECTIONS.length;
-console.log('Start ' + jobs_n + ' jobs');
-//log.start('job %s of ' + jobs_n);
-// Push jobs to queue and... wait until all well be done
-for (var x = X_START; x <= X_END; x++) {
-    for (var y = Y_START; y <= Y_END; y++) {
+var valic_locs = [];
+
+function main() {
+    // Here we go
+    //log('Start');
+    //var jobs_n = (X_END - X_START + 1) * (Y_END - Y_START + 1) * DIRECTIONS.length;
+    var jobs_n = valic_locs.length * DIRECTIONS.length;
+    console.log('Start ' + jobs_n + ' jobs');
+    //log.start('job %s of ' + jobs_n);
+    // Push jobs to queue and... wait until all well be done
+    // for (var x = X_START; x <= X_END; x++) {
+    //     for (var y = Y_START; y <= Y_END; y++) {
+    //         for (var di = 0; di < DIRECTIONS.length; di++) {
+    //             q.push({x:x, y:y, di:DIRECTIONS[di]});
+    //         }
+    //     }
+    // }
+    //for (var area_n = 0; area_n < valic_locs.length; area_n++) {
+    for (var loc of valic_locs) {
+        //console.log(loc.X + " " + loc.Y);
         for (var di = 0; di < DIRECTIONS.length; di++) {
-            q.push({x:x, y:y, di:DIRECTIONS[di]});
+            q.push({x:loc.X, y:loc.Y, di:DIRECTIONS[di]});
         }
     }
 }
+
+needle.get("https://dofusgo.com/json/subAreasWeb.json?v=2.43", function(err, response){
+    if (err) throw err;
+    if (response.statusCode == 200) {
+        console.log(response.body.length);
+        valic_locs = response.body;
+        main();
+    }
+});
